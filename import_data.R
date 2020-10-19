@@ -23,9 +23,9 @@ if (!("test_set" %in% ls())) {
 # summary(train_set)
 # str(train_set)
 # 
-# colSums(is.na(train_set))  # There are no NAs in data
+# colSums(is.na(train_set))  # NAs are present
 
 # summary(test_set)
 # str(test_set)
 # 
-# colSums(is.na(test_set))  # There are no NAs in data
+# colSums(is.na(test_set))  # NAs are present
