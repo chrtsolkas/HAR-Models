@@ -11,12 +11,12 @@ library(data.table)
 
 # Read the two data files if this was not already done
 if (!("train_set" %in% ls())) {
-  train_set <- fread("pml-training.csv", data.table = FALSE)
+  train_set <- fread("pml-training.csv", data.table = FALSE, stringsAsFactors = TRUE)
   
 }
 
 if (!("test_set" %in% ls())) {
-  test_set <- fread("pml-testing.csv", data.table = FALSE)
+  test_set <- fread("pml-testing.csv", data.table = FALSE, stringsAsFactors = TRUE)
   
 }
 
