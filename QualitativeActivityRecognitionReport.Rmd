@@ -1,6 +1,53 @@
-invisible(source("import_data.R"))
-library(dplyr)
+---
+title: "Qualitative Activity Recognition of Weight Lifting Exercises"
+author: "Christos Tsolkas"
+date: "October 20, 2020"
+output: 
+  html_document:
+    keep_md: true
+---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r read-data}
+# Download the training file only if this was not already done
+if(!file.exists("pml-training.csv")) {
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "pml-training.csv")
+}
+
+if(!file.exists("pml-testing.csv")) {
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "pml-testing.csv")
+}
+
+suppressPackageStartupMessages(library(data.table))
+
+# Read the two data files if this was not already done
+if (!("train_set" %in% ls())) {
+  train_set <- fread("pml-training.csv", data.table = FALSE, stringsAsFactors = TRUE)
+  
+}
+
+if (!("test_set" %in% ls())) {
+  test_set <- fread("pml-testing.csv", data.table = FALSE, stringsAsFactors = TRUE)
+  
+}
+
+# summary(train_set)
+# str(train_set)
+# 
+# colSums(is.na(train_set))  # NAs are present
+
+# summary(test_set)
+# str(test_set)
+# 
+# colSums(is.na(test_set))  # NAs are present
+
+```
+
+
+```{r explore}
 # How many users
 unique(train_set$user_name)
 table(train_set$user_name)
@@ -9,6 +56,10 @@ table(train_set$user_name)
 unique(train_set$classe)
 table(train_set$classe)
 
+```
+
+```{r clean-data}
+suppressPackageStartupMessages(library(dplyr))
 ## Clean the data set
 NApercentage <- .05 # Allow 5% NAs in data columns
 lowNAcolumns <- names(train_set)[colMeans(is.na(train_set)) < NApercentage]
@@ -38,16 +89,12 @@ test_set <- test_set %>%
             "num_window")
   )
 
-sum(colSums(is.na(train_set))) # Now there are no NAs
+# sum(colSums(is.na(train_set))) # Now there are no NAs
+```
 
-# 
-# train_set$cvtd_timestamp <- strptime(train_set$cvtd_timestamp, "%d/%m/%Y %H:%M")
-# 
-# sapply(train_set, class)
-# sapply(test_set, class)
-
-library(randomForest)
-library(caret)
+```{r model, cache=TRUE}
+suppressPackageStartupMessages(library(randomForest))
+suppressPackageStartupMessages(library(caret))
 
 #Use repeated cross validation: use 10 folds and repeat 3 times
 # It takes around 30 minutes to run
@@ -74,17 +121,21 @@ system.time({
                       trControl=control)
 })
 
+```
+
+```{r examine-model, fig.height=8, fig.width=9, fig.align='center'}
+suppressPackageStartupMessages(library(randomForest))
+suppressPackageStartupMessages(library(ggplot2))
 # Print the model
 print(rf_model)
 
 # Plot the variable importance for the final model choosen
-varImpPlot(rf_model$finalModel)
+# varImpPlot(rf_model$finalModel)
 
 # make dataframe from importance() output
 feat_imp_df <- importance(rf_model$finalModel) %>% 
   data.frame() %>% 
-  mutate(feature = row.names(.)) %>%
-  slice_max(n = 20)
+  mutate(feature = row.names(.))
 
 # plot dataframe
 ggplot(feat_imp_df, aes(x = reorder(feature, MeanDecreaseGini), 
@@ -95,19 +146,22 @@ ggplot(feat_imp_df, aes(x = reorder(feature, MeanDecreaseGini),
     y     = "Importance (Mean Decrease of Gini)",
     title = "Feature Importance: classe ~ ."
   ) +
+  theme(axis.text.x = element_text(size=12)) + 
   coord_flip() +
-  theme_classic()
-   
+  theme_light()
+
+print(rf_model$finalModel)   
 # Plot the final model
 plot(rf_model$finalModel)
+```
 
+```{r prediction}
 # Predict the classes for the test set
 rfModel_predict <- predict(rf_model, newdata = test_set, type = "raw")
 
 # Print the predictions
 print(rfModel_predict)
 # B A B A A E D B A A B C B A E E A B B B
+```
 
 
-trellis.par.set(caretTheme())
-plot(rf_model$finalModel)  
