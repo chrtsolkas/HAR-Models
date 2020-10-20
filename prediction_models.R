@@ -23,8 +23,14 @@ library(caret)
 
 nonNAcolumns <- names(train_set)[colSums(is.na(train_set)) == 0]
 
+
 nonNA_train_set <- train_set[, nonNAcolumns]
 nonNA_train_set <- nonNA_train_set %>%
+  select(-c("V1", "raw_timestamp_part_1", "raw_timestamp_part_2", 
+            "cvtd_timestamp", "new_window", "num_window"))
+
+nonNA_test_set <- test_set[, nonNAcolumns[-length(nonNAcolumns)]]
+nonNA_test_set <- nonNA_test_set %>%
   select(-c("V1", "raw_timestamp_part_1", "raw_timestamp_part_2", 
             "cvtd_timestamp", "new_window", "num_window"))
 
@@ -87,6 +93,9 @@ system.time({
 print(rf_default)
 varImpPlot(rf_default$finalModel)
 plot(rf_default$finalModel)
+defaultModel_pr <- predict(rf_default, newdata = nonNA_test_set, type = "raw")
+print(defaultModel_pr)
+# B A B A A E D B A A B C B A E E A B B B
 
 control <- trainControl(method='repeatedcv', 
                         number=10, 
@@ -104,8 +113,19 @@ system.time({
 })
 
 print(rf_grid)
+plot(rf_grid)
+print(rf_grid$finalModel)
 varImpPlot(rf_grid$finalModel)
 plot(rf_grid$finalModel)
+
+pred1=predict(rf_grid$finalModel,type = "prob")
+dim(pred1)
+dim(nonNA_train_set)
+
+finalModel_pr <- predict(rf_grid, newdata = nonNA_test_set, type = "raw")
+print(finalModel_pr)
+# B A B A A E D B A A B C B A E E A B B B
+
 ##################################################################
 # XGBOOST - eXtreme Gradient Boosting for regression
 ##################################################################
