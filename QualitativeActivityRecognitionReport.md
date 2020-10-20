@@ -19,7 +19,7 @@ The goal of this project is to predict the manner in which the participants did 
 
 The data for this project come from this source: [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har)
 
-The first step in our analysis is to download the data sets and have a look on their dimensions, their values and structure. We also look for NA values. The output is not shown since there are 19622 observations of 160 variables in the train set and 20 observations of 160 variables on the test set. The train set contains the categorical variable *classe* which is the ground truth class the observation belongs to. The test set does not contain this variable and we must predict its value. Instead the test set contains a variable called *problem_id* and this is why both sets have 160 variables. 
+The first step in our analysis is to download the data sets and have a look on their dimensions, their values and structure. We also look for NA values. The output is not shown since there are 19622 observations of 160 variables in the training set and 20 observations of 160 variables on the test set. The training set contains the categorical variable *classe* which is the ground truth class the observation belongs to. The test set does not contain this variable and we must predict its value. Instead the test set contains a variable called *problem_id* and this is why both sets have 160 variables. 
 
 
 ```
@@ -57,7 +57,7 @@ Let's have a look at the distribution of values for the "classe" variable in the
 
 ## Cleaning the data
 
-Now it is time for some cleaning. The first thing we noticed in our exploratory analysis was the presence of a lot NA values in many of the variables. NA values will cause problems in the training phase of our model. There are 100 variables in the training set that contain more than 95% NA values. We drop all of this variables from both the training and the test set. We next drop the variables that hold timestamp ("raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp") and time window("new_window", "num_window") information. Finaly we drop the user_name and the record count variable ("V1").Finally we have a training set with 53 variables without NA values. 
+Now let's do some cleaning. The first thing we noticed in our exploratory analysis was the presence of a lot of NA values in many of the variables. NA values will cause problems in the training phase of our model. There are 100 variables in the training set that contain more than 95% NA values. We drop all of this variables from both the training and the test set. We next drop the variables that hold timestamp values ("raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp") and timing window information ("new_window", "num_window"). Finally we drop the *user_name* and the record count variable ("V1"). At the end we have a training set with 53 variables without NA values. 
 
 We keep the same variables on the test set (we drop the problem_id variable), so we keep only 52 variables. We leave the test set aside for now since we want to use it for the validation of our final model.
 
@@ -87,7 +87,11 @@ We keep the same variables on the test set (we drop the problem_id variable), so
 ```
 ## Building a Model
 
-We will build a random forest model as our predictor. We will use the caret package for training with 10 fold repeated cross validation with 3 repeats (this approximately runs for a half an hour on an Intel i5 processor). We use a train control object for this process. For model tuning we use only one value for the mtry hyperparameter which controls the number of variables available for splitting at each tree node. In a separate experiment (it took around 5 hours to run) we used a grid search for the values 5 up to 15 for mtry and we found that the value 9 yields the best model. Thus we use this value for tuning the hyperparameter mtry. For the number of trees to try we left the default 500. For the training we use the metric of the accuracy of the model and the method is 'rf' which stands for random forest. We use all the variables as predictors (52 predictors) in our model.
+We will build a random forest model as our prediction model. The idea of using random forests came from the authors of the paper [*Qualitative Activity Recognition of Weight Lifting Exercises*](http://groupware.les.inf.puc-rio.br/public/papers/2013.Velloso.QAR-WLE.pdf) from which the data sets for this project were obtained.
+
+We will use the caret package for training with 10 fold repeated cross validation with 3 repeats (this approximately runs for a half an hour on an Intel i5 processor). We use a train control object for this process. This processes will lead to an unbiased model because of k-fold cross validation. We use 3 repeats to avoid over-fitting.
+
+For model tuning we have the hyperparameter 'mtry' which controls the number of variables available for splitting at each tree node. In a separate experiment (it took around 5 hours to run) we used a grid search for the values 5 up to 15 for 'mtry' and we found that the value 9 yields the best model. Thus we use this value for tuning the hyperparameter mtry. For the number of trees to try we left the default value of 500. For the training we use the metric of the accuracy of the model and the method is 'rf' which stands for random forest. We use all the variables as predictors (52 predictors) in our model.
 
 
 ```
@@ -137,7 +141,7 @@ Let's examine some of the model properties:
 
 <img src="QualitativeActivityRecognitionReport_files/figure-html/examine-model-2.png" style="display: block; margin: auto;" />
 
-We observe that our model has 99.67% accuracy and just 0.27% OOB (Out Of Bag) error rate so we expect it to have a really good performance in the validation phase using the test set data.
+We observe that our model has 99.67% accuracy and just 0.27% OOB (Out Of Bag) error rate so we expect it to have a really good performance in the validation phase using the test set data. One nice thing with the random forest model is that it provides us information on variable (feature) importance while building the model.
 
 ## Prediction
 
