@@ -11,6 +11,18 @@ output:
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website: [Human Activity Recognition](http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset). 
+
+The goal of this project is to predict the manner in which the participants did the exercise. This is the "classe" variable in the training set. We will describe how we built our model using cross validation. We will report an estimate of the expected out of sample error of our model. Finally we will use our prediction model to predict 20 different test cases for validation. 
+
+## Getting the data
+
+The data for this project come from this source: [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har)
+
+The first step in our analysis is to download the data sets and have a look on their dimensions, their values and structure. We also look for NA values. The output is not shown since there are 19622 observations of 160 variables in the train set and 20 observations of 160 variables on the test set. The train set contains the categorical variable *classe* which is the ground truth class the observation belongs to. The test set does not contain this variable and we must predict its value. Instead the test set contains a variable called *problem_id* and this is why both sets have 160 variables. 
+
 ```{r read-data}
 # Download the training file only if this was not already done
 if(!file.exists("pml-training.csv")) {
@@ -34,34 +46,49 @@ if (!("test_set" %in% ls())) {
   
 }
 
-# summary(train_set)
-# str(train_set)
-# 
+paste0("Training set dimensions: ")
+dim(train_set)
+
+# names(train_set)
+# # summary(train_set)
+# # str(train_set)
+# # 
 # colSums(is.na(train_set))  # NAs are present
 
-# summary(test_set)
-# str(test_set)
-# 
+paste0("Test set dimensions: ")
+dim(test_set)
+# names(test_set)
 # colSums(is.na(test_set))  # NAs are present
 
 ```
-
+Let's have a look at the distribution of values for the "classe" variable in the training set:
 
 ```{r explore}
 # How many users
-unique(train_set$user_name)
-table(train_set$user_name)
+# unique(train_set$user_name)
+# table(train_set$user_name)
 
 # how many classes and their distribution
+paste0("Class labels:")
 unique(train_set$classe)
-table(train_set$classe)
+paste0("Distribution of the classes:")
+barplot(table(train_set$classe), col = 2:6)
 
 ```
+
+## Cleaning the data
+
+Now it is time for some cleaning. The first thing we noticed in our exploratory analysis was the presence of a lot NA values in many of the variables. NA values will cause problems in the training phase of our model. There are 100 variables in the training set that contain more than 95% NA values. We drop all of this variables from both the training and the test set. We next drop the variables that hold timestamp ("raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp") and time window("new_window", "num_window") information. Finaly we drop the user_name and the record count variable ("V1").Finally we have a training set with 53 variables without NA values. 
+
+We keep the same variables on the test set (we drop the problem_id variable), so we keep only 52 variables. We leave the test set aside for now since we want to use it for the validation of our final model.
 
 ```{r clean-data}
 suppressPackageStartupMessages(library(dplyr))
 ## Clean the data set
 NApercentage <- .05 # Allow 5% NAs in data columns
+NAcols <- sum(colMeans(is.na(train_set)) > (1-NApercentage))
+paste0("Number of columns that contain NA values more than 95%: ", NAcols)
+
 lowNAcolumns <- names(train_set)[colMeans(is.na(train_set)) < NApercentage]
 
 # Drop columns that are filled with NAs
@@ -89,8 +116,19 @@ test_set <- test_set %>%
             "num_window")
   )
 
-# sum(colSums(is.na(train_set))) # Now there are no NAs
+paste0("Training set dimensions: ")
+dim(train_set)
+paste0("Test set dimensions: ")
+dim(test_set)
+
+paste0("Number of NA values in the training set: ", sum(colSums(is.na(train_set))))
+
 ```
+## Building a Model
+
+We will build a random forest model as our predictor. We will use the caret package for training with 10 fold repeated cross validation with 3 repeats (this approximately runs for a half an hour on an Intel i5 processor). We use a train control object for this process. This processes will lead to an unbiased model because of k-fold cross validation. We use 3 repeats to avoid overfitting.
+
+For model tuning we have the hyperparameter 'mtry' which controls the number of variables available for splitting at each tree node. In a separate experiment (it took around 5 hours to run) we used a grid search for the values 5 up to 15 for 'mtry' and we found that the value 9 yields the best model. Thus we use this value for tuning the hyperparameter mtry. For the number of trees to try we left the default 500. For the training we use the metric of the accuracy of the model and the method is 'rf' which stands for random forest. We use all the variables as predictors (52 predictors) in our model.
 
 ```{r model, cache=TRUE}
 suppressPackageStartupMessages(library(randomForest))
@@ -106,10 +144,10 @@ control <- trainControl(method='repeatedcv',
 set.seed(123)
 
 #Set mtry to the square root of the number of features used in the model
-mtry <- round(sqrt(ncol(train_set)))
+# mtry <- round(sqrt(ncol(train_set)-1))
 
 # tunegrid contains only the hyperparameter mtry
-tunegrid <- expand.grid(.mtry=mtry)
+tunegrid <- expand.grid(.mtry=9)
 
 # Train the model and time the process (it takes around 30 minutes with an i5 processor)
 system.time({
@@ -123,6 +161,7 @@ system.time({
 
 ```
 
+Let's examine some of the model properties:
 ```{r examine-model, fig.height=8, fig.width=9, fig.align='center'}
 suppressPackageStartupMessages(library(randomForest))
 suppressPackageStartupMessages(library(ggplot2))
@@ -154,6 +193,12 @@ print(rf_model$finalModel)
 # Plot the final model
 plot(rf_model$finalModel)
 ```
+
+We observe that our model has 99.67% accuracy and just 0.27% OOB (Out Of Bag) error rate so we expect it to have a really good performance in the validation phase using the test set data. One nice thing with the random forest model is that it provides us information on variable (feature) importance while building the model.
+
+## Prediction
+
+Now it's time to validate our model on the test set. Using the course quiz to validate our model we achieved 100% accuracy in predicting the correct class!
 
 ```{r prediction}
 # Predict the classes for the test set
